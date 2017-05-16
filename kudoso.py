@@ -39,6 +39,11 @@ data_table = [
     [0, 0, 0, 5, 7, 0, 4, 0, 0]
     ]
 
+def INDEX(x):
+    assert x > 0 and x < 10
+    return x-1
+
+
 def is_valid(x):
     if x>0 and x<10:
         return True
@@ -66,10 +71,11 @@ class node:
     def __init__(self, x, y):
         self.mark_values = [True, True, True, True, True, True, True, True, True]
         self.set_position(x, y)
-        
+        '''        
         if (x == 1 and y == 7):
             self.show_position()
             self.show_avaliable()
+        '''
 
     def set_position(self, x, y):
         self.row = y
@@ -85,23 +91,23 @@ class node:
         
         if val != 0:
             self.mark_count = 0
-            for i in range(0,9):
-                self.mark_values[i] = False 
+            for i in range(1,10):
+                self.mark_values[INDEX(i)] = False 
 
     def mark_invalid(self, val):
-        if self.value != 0 or self.mark_values[val-1] == False:
+        if self.value != 0 or self.mark_values[INDEX(val)] == False:
             return
 
         #print "marking node(%d, %d) with val %d" % (self.row, self.vol, val)
 
-        self.mark_values[val-1] = False
+        self.mark_values[INDEX(val)] = False
         self.mark_count -= 1
         if self.mark_count == 1:
-            for i in range (0, 9):
-                if self.mark_values[i] == True:
-                    print "fill node (%d, %d) with value %d" % (self.row, self.vol, i+1)
-                    self.set_value(i+1)
-                    nt.mark_invalid(self.row, self.vol, self.group, i+1)
+            for i in range (1, 10):
+                if self.mark_values[INDEX(i)] == True:
+                    print "fill node (%d, %d) with value %d" % (self.row, self.vol, i)
+                    self.set_value(i)
+                    nt.mark_invalid(self.row, self.vol, self.group, i)
         elif self.mark_count < 1:
             print "no avaliable value for node (%d, %d), failed" % (self.row, self.vol)
             return -1
@@ -110,13 +116,13 @@ class node:
         values = []
         #print self.mark_values
         for i in range(1, 10):
-            if self.mark_values[i-1] == True:
+            if self.mark_values[INDEX(i)] == True:
                 values.append(i)
 
         print values
 
     def is_avaliable(self, value):
-        return self.mark_values[value - 1]
+        return self.mark_values[INDEX(value)]
 
 
 
@@ -143,7 +149,7 @@ class node_group:
                 for j in range(0, 9):
                     if j != i:
                         self.nodes[j].mark_invalid(mark)
-                        n = self.nodes[j]
+                        #n = self.nodes[j]
                         #print "marking node (%d,%d) with value %d" % (n.row, n.vol, mark)
         self.check_resolved()
 
@@ -165,130 +171,99 @@ class node_group:
                 self.is_resolved = False
                 return
         self.is_resolved = True
+        self.parent.check_resolved()
 
 
     def get_need_check_values(self):
         self.need_check_values = []
         for i in range(0, 9):
             #print self.nodes[i].mark_values
-            for j in range(0, 9):
-                if self.nodes[i].mark_values[j] == True:
-                    if j+1 not in self.need_check_values:
-                        self.need_check_values.append(j+1)
+            for j in range(1, 10):
+                if self.nodes[i].mark_values[INDEX(j)] == True:
+                    if j not in self.need_check_values:
+                        self.need_check_values.append(j)
                         print self.need_check_values
         
         print "need_check_values result"
         print self.need_check_values
+
+    def get_small_group(self, mode=""):
+        small_groups = []
+
+        for i in range(0,3):
+            small_nodes = []
+            for j in range(0,3):
+                if mode == "row":
+                    index = i*3+j
+                elif mode == "vol":
+                    index = i+j*3
+                else:
+                    index = i*3+j
+                small_nodes.append(self.nodes[index])
+            small_groups.append(node_small_group(small_nodes))
+
+        return small_groups
+
+    def find_in_small_groups(self, values, grps):
+        ret_vals = []
+        result = [True, True, True]
+
+        #print "in find_in_small_groups", values, grps
+
+        for i in values:
+            print "now checking", i
+            count = 0
+            for j in range(0, 3):
+                c = grps[j].find_value(i)
+                result[j] = (c > 0)
+                count += c
+            print result, count
+
+            if count == 1:
+                for j in range(0,9):
+                    if self.nodes[j].is_avaliable(i):
+                        print "fill node",self.nodes[j].row, self.nodes[j].vol,"with value",i
+                        self.nodes[j].set_value(i)
+                        self.parent.mark_invalid(self.nodes[j].row, self.nodes[j].vol, self.nodes[j].group, i)
+
+            if result.count(True) == 1:
+                print i, "only in small grp", result.index(True)
+                #print mode
+                #print "need send cmd to small grp", grps[result.index(True)].nodes[0]
+                ret_vals.append([i, grps[result.index(True)].nodes[0]])
+
+        return ret_vals
+            
         
     def check_cross(self, mode):
         if mode == "group":
             ret_vals= [[], []]
             
-            rows = []
-            for i in range(0,3):
-                row_nodes=[]
-                for j in range(0,3):
-                    row_nodes.append(self.nodes[i*3+j])
-                rows.append(node_small_group(row_nodes))
-
+            rows = self.get_small_group("row")
             
-            vols = []
-            for i in range(0,3):
-                vol_nodes=[]
-                for j in range(0,3):
-                    vol_nodes.append(self.nodes[i+j*3])
-                vols.append(node_small_group(vol_nodes))
+            row_ret = self.find_in_small_groups(self.need_check_values, rows)
 
-            result = [True, True, True]
-            for i in self.need_check_values:
-                print "now checking", i
-                count = 0
-                for j in range(0, 3):
-                    c = rows[j].find_value(i)
-                    result[j] = (c > 0)
-                    count += c
-                print result, count
+            for d in row_ret:
+                ret_vals[0].append([d[0], d[1].row])
 
-                if count == 1:
-                    for j in range(0,9):
-                        if self.nodes[j].is_avaliable(i):
-                            print "fill node",self.nodes[j].row, self.nodes[j].vol,"with value",i
-                            self.nodes[j].set_value(i)
-                            self.parent.mark_invalid(self.nodes[j].row, self.nodes[j].vol, self.nodes[j].group, i)
-                
-                if result.count(True) == 1:
-                    print i, "only in small grp", result.index(True)
-                    print mode
-                    
-                    print "need send cmd to row", rows[result.index(True)].nodes[0].row
+            vols = self.get_small_group("vol")
 
-                    ret_vals[0].append([i, rows[result.index(True)].nodes[0].row])
-                    
-            
+            vol_ret = self.find_in_small_groups(self.need_check_values, vols)
 
-            for i in self.need_check_values:
-                print "now checking", i
-                count = 0
-                for j in range(0, 3):
-                    c = vols[j].find_value(i)
-                    result[j] = (c > 0)
-                    count += c
-                print result, count
-
-                if count == 1:
-                    for j in range(0,9):
-                        if self.nodes[j].is_avaliable(i):
-                            print "fill node",self.nodes[j].row, self.nodes[j].vol,"with value",i
-                            self.nodes[j].set_value(i)
-                            self.parent.mark_invalid(self.nodes[j].row, self.nodes[j].vol, self.nodes[j].group, i)
-                
-                if result.count(True) == 1:
-                    print i, "only in small grp", result.index(True)
-                    print mode
-                    
-                    print "need send cmd to vol", vols[result.index(True)].nodes[0].vol
-
-                    ret_vals[1].append([i, vols[result.index(True)].nodes[0].vol])
+            for d in vol_ret:
+                ret_vals[1].append([d[0], d[1].vol])
 
             return ret_vals
-                
             
         else:
             ret_val = []
-            small_grps = []
-            for i in range(0,3):
-                small_grp_nodes=[]
-                for j in range(0,3):
-                    #print "adding node", self.nodes[i*3+j].row, self.nodes[i*3+j].vol
-                    small_grp_nodes.append(self.nodes[i*3+j])
-                small_grps.append(node_small_group(small_grp_nodes))
+            small_grps = self.get_small_group()
             
-            result = [True, True, True]
-            
-            for i in self.need_check_values:
-                print "now checking", i
-                count = 0
-                for j in range(0, 3):
-                    c = small_grps[j].find_value(i)
-                    result[j] = (c > 0)
-                    count += c
-                print result, count
+            grp_ret = self.find_in_small_groups(self.need_check_values, small_grps)
 
-                if count == 1:
-                    for j in range(0,9):
-                        if self.nodes[j].is_avaliable(i):
-                            print "fill node",self.nodes[j].row, self.nodes[j].vol,"with value",i
-                            self.nodes[j].set_value(i)
-                            self.parent.mark_invalid(self.nodes[j].row, self.nodes[j].vol, self.nodes[j].group, i)
-                
-                if result.count(True) == 1:
-                    print i, "only in small grp", result.index(True)
-                    print mode
-                    
-                    print "need send cmd to grp", small_grps[result.index(True)].nodes[0].group
+            for d in grp_ret:
+                ret_val.append([d[0], d[1].group])
 
-                    ret_val.append([i, small_grps[result.index(True)].nodes[0].group])
-                    
             return ret_val
 
      
@@ -308,6 +283,10 @@ class node_small_group(node_group):
 
 class node_table:
     table = []
+    is_resolved = False
+    rows = []
+    vols = []
+    grps = []
 
     def __init__(self, input_table):
         for i in range(0, 9):
@@ -319,10 +298,20 @@ class node_table:
                 line.append(n)
                 
             self.table.append(line)
+
+        for i in range(1,10):
+            self.rows.append(node_group(self.get_row(i), self))
+
+        for i in range(1,10):
+            self.vols.append(node_group(self.get_vol(i), self))
+
+
+        for i in range(1,10):
+            self.grps.append(node_group(self.get_group(i), self))        
         
 
     def get_node(self, row, vol):
-        return self.table[row-1][vol-1]
+        return self.table[INDEX(row)][INDEX(vol)]
 
     def show_values(self):
         for line in self.table:
@@ -333,6 +322,7 @@ class node_table:
         print
 
     def get_row(self, row_num):
+        #print "geting row", row_num
         return self.table[row_num - 1]
 
     def get_vol(self, vol_num):
@@ -358,7 +348,16 @@ class node_table:
                 if n.row == row or n.vol == vol or n.group == group:
                     n.mark_invalid(value)
 
-        
+    def check_resolved(self):
+        for i in range(0, 9):
+            if self.rows[i].is_resolved == False:
+                self.is_resolved = False
+                return 
+
+
+        print "Sudoku Resolved!!!"
+        self.is_resolved = True
+
             
     
 
@@ -392,7 +391,7 @@ g.show_values()
 #n = nt.get_node(7,1)
 #print "node position %d, %d, value=%d, mark_count=%d" % (n.row, n.vol, n.value, n.mark_count)
 #n.show_avaliable()
-
+'''
 rows = []
 for i in range(1,10):
     rows.append(node_group(nt.get_row(i), nt))
@@ -405,11 +404,15 @@ for i in range(1,10):
 grps = []
 for i in range(1,10):
     grps.append(node_group(nt.get_group(i), nt))
-
+'''
+rows = nt.rows
+vols = nt.vols
+grps = nt.grps
+'''
 print "parent"
 print grps[7].parent
 grps[7].parent.show_values()
-
+'''
 
 
 for round in range(1,10):
@@ -478,7 +481,9 @@ for i in range(0,9):
         vols[result[1][j][1]-1].mark_invalid_except("group", i+1, result[1][j][0])
         vols[result[1][j][1]-1].mark_invalid()
     nt.show_values()
-    
+
+    if nt.is_resolved == True:
+        break
 nt.show_values()
 
 print "stage 2 end, stage 3 start"
@@ -548,7 +553,8 @@ for i in range(0,9):
         vols[result[1][j][1]-1].mark_invalid_except("group", i+1, result[1][j][0])
         vols[result[1][j][1]-1].mark_invalid()
     nt.show_values()
-    
+    if nt.is_resolved == True:
+        break
 nt.show_values()
 
 '''
