@@ -129,7 +129,7 @@ class node:
 class node_group:
     nodes = []
     is_resolved = False
-    need_check_value = []
+    need_check_values = []
     parent = None
 
     def __init__(self, input_nodes, parent=None):
@@ -151,7 +151,7 @@ class node_group:
                         self.nodes[j].mark_invalid(mark)
                         #n = self.nodes[j]
                         #print "marking node (%d,%d) with value %d" % (n.row, n.vol, mark)
-        self.check_resolved()
+        #self.check_resolved()
 
     def mark_invalid_except(self, mode, id, value):
         for i in range(0, 9):
@@ -171,7 +171,7 @@ class node_group:
                 self.is_resolved = False
                 return
         self.is_resolved = True
-        self.parent.check_resolved()
+        #self.parent.check_resolved()
 
 
     def get_need_check_values(self):
@@ -266,6 +266,12 @@ class node_group:
 
             return ret_val
 
+    def show_avaliable(self):
+        for i in range(0,9):
+            if self.nodes[i].value == 0:
+                print "show_avaliable"
+                self.nodes[i].show_position()
+                self.nodes[i].show_avaliable()
      
             
 class node_small_group(node_group):
@@ -348,16 +354,30 @@ class node_table:
                 if n.row == row or n.vol == vol or n.group == group:
                     n.mark_invalid(value)
 
+    def group_mark_invalid(self):
+        for i in range(0,9):
+            self.rows[i].mark_invalid()
+            self.vols[i].mark_invalid()
+            self.grps[i].mark_invalid()
+            
+
     def check_resolved(self):
         for i in range(0, 9):
+            #print "check resolve row", i+1
+            self.rows[i].check_resolved()
             if self.rows[i].is_resolved == False:
                 self.is_resolved = False
-                return 
-
+                return
+            else:
+                print "row", i+1, "is resolved"
 
         print "Sudoku Resolved!!!"
         self.is_resolved = True
 
+    def show_avaliable(self):
+        for i in range(0, 9):
+            if not self.rows[i].is_resolved:
+                self.rows[i].show_avaliable()
             
     
 
@@ -417,71 +437,48 @@ grps[7].parent.show_values()
 
 for round in range(1,10):
     print "round", round
-    all_resolved = True
-    for i in range(0,9):
-        rows[i].mark_invalid()
-        vols[i].mark_invalid()
-        grps[i].mark_invalid()
-
-        if rows[i].is_resolved == False:
-            print "row", i+1, "is not resolved"
-            all_resolved = False
-    
+    nt.group_mark_invalid()
     nt.show_values()
-    #print all_resolved
-    if all_resolved == True:
-        print "Resolved!!!"
+    nt.check_resolved()
+    if nt.is_resolved:
         break
-    else:
-        print "Need another round"
-
-for i in range(1,10):
-    for j in range(1,10):
-        n = nt.get_node(i, j)
-        if n.value == 0:
-            print "node(",i,",",j,") mark="
-            n.show_avaliable()
+        
+nt.show_avaliable()
 
 print "stage 1 end, stage 2 start"
 
 
-'''
-for i in range(0,9):
-    print "checking grp", i+1
-    grps[i].get_need_check_values()
-    grps[i].check_cross("group")
-'''
-for i in range(0,9):
-    print "checking row", i+1
-    rows[i].get_need_check_values()
-    result = rows[i].check_cross("row")
+for i in range(1,10):
+    print "checking row", i
+    rows[INDEX(i)].get_need_check_values()
+    result = rows[INDEX(i)].check_cross("row")
     print result
     for j in range(0, len(result)):
-        grps[result[j][1]-1].mark_invalid_except("row", i+1, result[j][0])
-        grps[result[j][1]-1].mark_invalid()
+        grps[INDEX(result[j][1])].mark_invalid_except("row", i, result[j][0])
+        grps[INDEX(result[j][1])].mark_invalid()
     
     nt.show_values()
-    print "checking vol", i+1
-    vols[i].get_need_check_values()
-    result = vols[i].check_cross("vol")
+    print "checking vol", i
+    vols[INDEX(i)].get_need_check_values()
+    result = vols[INDEX(i)].check_cross("vol")
     print result
     for j in range(0, len(result)):
-        grps[result[j][1]-1].mark_invalid_except("vol", i+1, result[j][0])
-        grps[result[j][1]-1].mark_invalid()
+        grps[INDEX(result[j][1])].mark_invalid_except("vol", i, result[j][0])
+        grps[INDEX(result[j][1])].mark_invalid()
 
     nt.show_values()
-    print "checking group", i+1
-    grps[i].get_need_check_values()
-    result = grps[i].check_cross("group")
+    print "checking group", i
+    grps[INDEX(i)].get_need_check_values()
+    result = grps[INDEX(i)].check_cross("group")
     print result
     for j in range(0, len(result[0])):
-        rows[result[0][j][1]-1].mark_invalid_except("group", i+1, result[0][j][0])
-        rows[result[0][j][1]-1].mark_invalid()
+        rows[INDEX(result[0][j][1])].mark_invalid_except("group", i, result[0][j][0])
+        rows[INDEX(result[0][j][1])].mark_invalid()
     for j in range(0, len(result[1])):
-        vols[result[1][j][1]-1].mark_invalid_except("group", i+1, result[1][j][0])
-        vols[result[1][j][1]-1].mark_invalid()
+        vols[INDEX(result[1][j][1])].mark_invalid_except("group", i, result[1][j][0])
+        vols[INDEX(result[1][j][1])].mark_invalid()
     nt.show_values()
-
+    nt.check_resolved()
     if nt.is_resolved == True:
         break
 nt.show_values()
@@ -489,30 +486,13 @@ nt.show_values()
 print "stage 2 end, stage 3 start"
 for round in range(1,10):
     print "round", round
-    all_resolved = True
-    for i in range(0,9):
-        rows[i].mark_invalid()
-        vols[i].mark_invalid()
-        grps[i].mark_invalid()
-
-        if rows[i].is_resolved == False:
-            print "row", i+1, "is not resolved"
-            all_resolved = False
-    
+    nt.group_mark_invalid()
     nt.show_values()
-    #print all_resolved
-    if all_resolved == True:
-        print "Resolved!!!"
+    nt.check_resolved()
+    if nt.is_resolved:
         break
-    else:
-        print "Need another round"
-
-for i in range(1,10):
-    for j in range(1,10):
-        n = nt.get_node(i, j)
-        if n.value == 0:
-            print "node(",i,",",j,") mark="
-            n.show_avaliable()
+    
+nt.show_avaliable()
 
 print "stage 3 end, stage 4 start"
 
@@ -553,48 +533,9 @@ for i in range(0,9):
         vols[result[1][j][1]-1].mark_invalid_except("group", i+1, result[1][j][0])
         vols[result[1][j][1]-1].mark_invalid()
     nt.show_values()
+    nt.check_resolved()
     if nt.is_resolved == True:
         break
 nt.show_values()
 
-'''
-for i in range(0,9):
-    print "checking vol", i+1
-    vols[i].get_need_check_values()
-    vols[i].check_cross("vol")
-'''
-
-'''
-nt.show_values()
-n.show_avaliable()
-
-
-
-
-for i in range(0,9):
-    print "debug mark vol %d" %(i+1)
-    vols[i].mark_invalid()
-    nt.show_values()
-    print "node position %d, %d, value=%d" % (n.row, n.vol, n.value)
-    n.show_avaliable()
-'''
-'''
-nt.show_values()
-
-
-print "round 2"
-for i in range(0,9):
-    rows[i].mark_invalid()
-    vols[i].mark_invalid()
-    grps[i].mark_invalid()
-nt.show_values()
-
-print "round 3"
-for i in range(0,9):
-    rows[i].mark_invalid()
-    vols[i].mark_invalid()
-    grps[i].mark_invalid()
-nt.show_values()
-
-'''
 

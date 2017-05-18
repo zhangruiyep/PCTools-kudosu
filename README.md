@@ -3,6 +3,10 @@ A tool to resolve sudoku puzzle
 
 History:
 
+2017/5/18：
+
+imporve code structure, and fix minor bugs
+
 2017/5/16:
 
 improve speed and code structure
