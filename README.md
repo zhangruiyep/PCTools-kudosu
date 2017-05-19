@@ -3,6 +3,9 @@ A tool to resolve sudoku puzzle
 
 History:
 
+2017/5/19:
+imporve code structure, add feature guess (WIP)
+
 2017/5/18：
 
 imporve code structure, and fix minor bugs
